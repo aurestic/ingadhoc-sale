@@ -30,14 +30,18 @@ class SaleOrderTypology(models.Model):
 
     @api.onchange('order_policy')
     def onchange_order_policy(self):
-        if self.order_policy != 'manual':
+        if self.order_policy == 'prepaid':
             self.validate_automatically_invoice = False
             self.validate_automatically_picking = False
             self.validate_automatically_voucher = False
             self.payment_journal_id = False
             self.journal_id = False
+        elif self.order_policy == 'manual':
+            self.invoice_state = 'none'
+        else:
+            self.invoice_state = '2binvoiced'
 
-    @api.one
+    @api.multi
     @api.constrains(
         'journal_id',
         'payment_journal_id',
@@ -46,13 +50,14 @@ class SaleOrderTypology(models.Model):
     def validate_company_id(self):
         text = _(
             'The Journal "%s" company must be the same than sale order type')
-        if self.journal_id and self.journal_id.company_id != self.company_id:
-            raise Warning(text % self.journal_id.name)
-        if self.payment_journal_id and self.payment_journal_id.company_id != self.company_id:
-            raise Warning(text % self.payment_journal_id.name)
-        if self.refund_journal_id and self.refund_journal_id.company_id != self.company_id:
-            raise Warning(text % self.refund_journal_id.name)
-        if self.sequence_id and self.sequence_id.company_id != self.company_id:
-            raise Warning(_(
-                'The Sequence "%s" company must be the same than'
-                ' sale order type') % self.sequence_id.name)
+        for record in self:
+            if record.journal_id and record.journal_id.company_id != record.company_id:
+                raise Warning(text % record.journal_id.name)
+            if record.payment_journal_id and record.payment_journal_id.company_id != record.company_id:
+                raise Warning(text % record.payment_journal_id.name)
+            if record.refund_journal_id and record.refund_journal_id.company_id != record.company_id:
+                raise Warning(text % record.refund_journal_id.name)
+            if record.sequence_id and record.sequence_id.company_id != record.company_id:
+                raise Warning(_(
+                    'The Sequence "%s" company must be the same than'
+                    ' sale order type') % record.sequence_id.name)
